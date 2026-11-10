@@ -34,7 +34,7 @@ export function PaymentRequestFormDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
-  const vendors = useVendors();
+  const vendors = useVendors({ limit: 100, sort: 'name:asc' });
   const accounts = useTreasuryAccounts();
   const create = useCreatePaymentRequest();
   const {
@@ -76,7 +76,7 @@ export function PaymentRequestFormDialog({
           <Field label="Vendor" htmlFor="pr-vendor" error={errors.vendorId?.message}>
             <NativeSelect id="pr-vendor" aria-invalid={!!errors.vendorId} {...register('vendorId')}>
               <option value="">Choose a vendor…</option>
-              {vendors.data?.map((v) => (
+              {vendors.data?.items.map((v) => (
                 <option key={v.id} value={v.id}>
                   {v.name}
                 </option>

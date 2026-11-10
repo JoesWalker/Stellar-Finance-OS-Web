@@ -9,6 +9,8 @@ import {
   useTable,
   type ColumnDef,
   type RowData,
+  type SortingState,
+  type Updater,
 } from '@tanstack/react-table';
 import { ArrowDown, ArrowUp, ArrowUpDown } from 'lucide-react';
 import { cn } from '../lib/utils';
@@ -29,6 +31,22 @@ export type DataTableColumn<TData extends RowData> = ColumnDef<DataTableFeatures
 export const createDataTableColumns = <TData extends RowData>() =>
   createColumnHelper<DataTableFeatures, TData>();
 
+/** A single-column sort, e.g. `{ id: 'dueDate', desc: true }`. */
+export interface DataTableSort {
+  id: string;
+  desc: boolean;
+}
+
+/** `{ id: 'dueDate', desc: true }` → `'dueDate:desc'` (the API's `?sort=` format). */
+export const sortToParam = (sort: DataTableSort | null | undefined) =>
+  sort ? `${sort.id}:${sort.desc ? 'desc' : 'asc'}` : undefined;
+
+/** `'dueDate:desc'` → `{ id: 'dueDate', desc: true }`. */
+export function sortFromParam(param: string | null | undefined): DataTableSort | null {
+  const m = param ? /^(\w+):(asc|desc)$/.exec(param) : null;
+  return m ? { id: m[1]!, desc: m[2] === 'desc' } : null;
+}
+
 export interface DataTableProps<TData extends RowData> {
   columns: DataTableColumn<TData>[];
   data: TData[];
@@ -37,6 +55,12 @@ export interface DataTableProps<TData extends RowData> {
   className?: string;
   /** Accessible table name. */
   'aria-label'?: string;
+  /**
+   * Server-side sorting: pass the current sort and a change handler, and the table stops
+   * sorting rows itself — the parent refetches in the new order.
+   */
+  sort?: DataTableSort | null;
+  onSortChange?: (sort: DataTableSort | null) => void;
 }
 
 export function DataTable<TData extends RowData>({
@@ -45,12 +69,26 @@ export function DataTable<TData extends RowData>({
   getRowId,
   className,
   'aria-label': ariaLabel,
+  sort,
+  onSortChange,
 }: DataTableProps<TData>) {
+  const serverSorting: SortingState | undefined = onSortChange ? (sort ? [sort] : []) : undefined;
   const table = useTable({
     features: dataTableFeatures,
     columns,
     data,
     getRowId: getRowId ? (row) => getRowId(row) : undefined,
+    ...(onSortChange
+      ? {
+          manualSorting: true,
+          enableMultiSort: false,
+          state: { sorting: serverSorting },
+          onSortingChange: (updater: Updater<SortingState>) => {
+            const next = typeof updater === 'function' ? updater(serverSorting ?? []) : updater;
+            onSortChange(next[0] ?? null);
+          },
+        }
+      : {}),
   });
 
   return (

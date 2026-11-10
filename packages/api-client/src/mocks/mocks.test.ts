@@ -1,3 +1,4 @@
+import Big from 'big.js';
 import { setupServer } from 'msw/node';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { createApiClient } from '../client';
@@ -94,6 +95,46 @@ describe('mock backend', () => {
     );
     expect(invoice.status).toBe('paid');
     expect(invoice.matches).toHaveLength(1);
+  });
+
+  it('paginates, sorts and searches invoices on the server', async () => {
+    db = createDb(new Date(), { historicInvoices: 493 }); // 7 seeded + 493 = 500
+    server.resetHandlers(...createHandlers({ baseUrl, db }));
+    const chi = await as('chi@acme.test');
+
+    const first = unwrap(await chi.GET('/invoices', { params: { query: { limit: 50 } } }));
+    expect(first.data).toHaveLength(50);
+    expect(first.total).toBe(500);
+    expect(first.nextCursor).toBeTruthy();
+
+    // Sort is applied before paging, so the order holds across pages.
+    const amounts: string[] = [];
+    let cursor: string | undefined;
+    do {
+      const page = unwrap(
+        await chi.GET('/invoices', {
+          params: { query: { sort: 'amount:asc', limit: 100, cursor } },
+        }),
+      );
+      amounts.push(...page.data.map((i) => i.amount));
+      cursor = page.nextCursor ?? undefined;
+    } while (cursor);
+    expect(amounts).toHaveLength(500);
+    const sorted = [...amounts].sort((a, b) => new Big(a).cmp(new Big(b)));
+    expect(amounts).toEqual(sorted);
+
+    const acme = unwrap(
+      await chi.GET('/invoices', { params: { query: { q: 'acme', limit: 100 } } }),
+    );
+    expect(acme.total).toBeGreaterThan(0);
+    expect(acme.data.every((i) => i.clientName === 'Acme Retail')).toBe(true);
+
+    const open = unwrap(
+      await chi.GET('/invoices', {
+        params: { query: { q: 'acme', status: ['sent', 'overdue', 'partially_paid'] } },
+      }),
+    );
+    expect(open.data.map((i) => i.number)).toEqual(['INV-1007']);
   });
 
   it('exports CSV for a date range', async () => {

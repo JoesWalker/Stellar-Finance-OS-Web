@@ -1,4 +1,5 @@
 import { http, HttpResponse } from 'msw';
+import { paginate } from '../list';
 import type { VendorInput } from '../../types';
 import { authenticate, error, newId, requireRole, WRITE_ROLES, type MockContext } from '../context';
 
@@ -6,7 +7,12 @@ export const vendorHandlers = ({ db, base }: MockContext) => [
   http.get(`${base}/vendors`, ({ request }) => {
     const caller = authenticate(db, request);
     if (caller instanceof Response) return caller;
-    return HttpResponse.json({ data: db.vendors });
+    const page = paginate(db.vendors, new URL(request.url), {
+      search: (v) => [v.name, v.email, v.payoutAddress],
+      sortable: { name: { get: (v) => v.name }, createdAt: { get: (v) => v.createdAt } },
+      defaultSort: 'name:asc',
+    });
+    return page instanceof Response ? page : HttpResponse.json(page);
   }),
 
   http.post(`${base}/vendors`, async ({ request }) => {

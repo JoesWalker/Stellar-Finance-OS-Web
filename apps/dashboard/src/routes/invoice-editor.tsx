@@ -23,9 +23,12 @@ function NoAccess() {
   );
 }
 
+/** Pickers load one large page; a searchable combobox can replace this when lists grow. */
+const PICKER = { limit: 100, sort: 'name:asc' };
+
 export function InvoiceEditorPage() {
   const canWrite = usePermission('invoices:write');
-  const clients = useClients();
+  const clients = useClients(PICKER);
   const create = useCreateInvoice();
   const navigate = useNavigate();
 
@@ -38,7 +41,7 @@ export function InvoiceEditorPage() {
         <QueryView
           query={clients}
           resource="clients"
-          isEmpty={(list) => list.length === 0}
+          isEmpty={(list) => list.items.length === 0}
           empty={
             <EmptyState
               icon={<Users />}
@@ -54,7 +57,7 @@ export function InvoiceEditorPage() {
         >
           {(list) => (
             <InvoiceForm
-              clients={list}
+              clients={list.items}
               defaultValues={{
                 clientId: '',
                 assetCode: 'USDC',
@@ -83,7 +86,7 @@ export function InvoiceEditPage() {
   const { id = '' } = useParams();
   const canWrite = usePermission('invoices:write');
   const invoice = useInvoice(id);
-  const clients = useClients();
+  const clients = useClients(PICKER);
   const update = useUpdateInvoice(id);
   const navigate = useNavigate();
 
@@ -102,7 +105,7 @@ export function InvoiceEditPage() {
             />
           ) : (
             <InvoiceForm
-              clients={clients.data ?? []}
+              clients={clients.data?.items ?? []}
               defaultValues={{
                 clientId: inv.clientId,
                 assetCode: inv.assetCode === 'XLM' ? 'XLM' : 'USDC',

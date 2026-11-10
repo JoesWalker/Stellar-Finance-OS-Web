@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useSearchParams } from 'react-router';
+import { Link } from 'react-router';
 import { useTransactions, type Transaction } from '@finance-os/api-client';
 import {
   Address,
@@ -9,7 +9,10 @@ import {
   createDataTableColumns,
   DataTable,
   EmptyState,
+  LoadMore,
+  NoResults,
   PageHeader,
+  SearchInput,
 } from '@finance-os/ui';
 import { explorerUrl, formatDate } from '@finance-os/utils';
 import { ArrowDownLeft, ArrowLeftRight, ArrowUpRight, ExternalLink } from 'lucide-react';
@@ -17,24 +20,29 @@ import { usePermission } from '../auth/use-permission';
 import { QueryView } from '../components/query-view';
 import { env } from '../env';
 import { MatchDrawer } from '../features/transactions/match-drawer';
+import { useListParams } from '../lib/use-list-params';
 
 const col = createDataTableColumns<Transaction>();
 
 export function TransactionsPage() {
-  const [params, setParams] = useSearchParams();
-  const unmatchedOnly = params.get('filter') === 'unmatched';
-  const query = useTransactions(unmatchedOnly ? 'unmatched' : undefined);
+  const list = useListParams();
+  const unmatchedOnly = list.params.get('filter') === 'unmatched';
+  const query = useTransactions({
+    matchStatus: unmatchedOnly ? 'unmatched' : undefined,
+    q: list.q,
+    sort: list.sortParam,
+  });
   const canMatch = usePermission('transactions:match');
   const [matching, setMatching] = useState<Transaction | null>(null);
 
   const columns = [
     col.accessor('createdAt', {
       header: 'Date',
-      sortFn: 'datetime',
       cell: ({ getValue }) => formatDate(getValue()),
     }),
     col.accessor('direction', {
       header: 'Activity',
+      enableSorting: false,
       cell: ({ row }) =>
         row.original.direction === 'incoming' ? (
           <span className="inline-flex items-center gap-1.5">
@@ -92,7 +100,6 @@ export function TransactionsPage() {
     }),
     col.accessor('amount', {
       header: 'Amount',
-      enableSorting: false,
       meta: { className: 'text-right' },
       cell: ({ row }) => (
         <Amount
@@ -126,45 +133,71 @@ export function TransactionsPage() {
         title="Transactions"
         description="Every payment in and out of your treasury accounts."
       />
-      <div role="group" aria-label="Filter transactions" className="mb-4 flex gap-1.5">
-        {[
-          { label: 'All', value: false },
-          { label: 'Unmatched', value: true },
-        ].map((f) => (
-          <Button
-            key={f.label}
-            size="sm"
-            variant={unmatchedOnly === f.value ? 'default' : 'outline'}
-            aria-pressed={unmatchedOnly === f.value}
-            onClick={() => setParams(f.value ? { filter: 'unmatched' } : {}, { replace: true })}
-          >
-            {f.label}
-          </Button>
-        ))}
+      <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <SearchInput
+          aria-label="Search transactions"
+          placeholder="Memo, amount, address or invoice"
+          value={list.q}
+          onValueChange={list.setQ}
+        />
+        <div role="group" aria-label="Filter transactions" className="flex gap-1.5">
+          {[
+            { label: 'All', value: false },
+            { label: 'Unmatched', value: true },
+          ].map((f) => (
+            <Button
+              key={f.label}
+              size="sm"
+              variant={unmatchedOnly === f.value ? 'default' : 'outline'}
+              aria-pressed={unmatchedOnly === f.value}
+              onClick={() => list.set({ filter: f.value ? 'unmatched' : null })}
+            >
+              {f.label}
+            </Button>
+          ))}
+        </div>
       </div>
       <QueryView
         query={query}
         resource="transactions"
-        isEmpty={(list) => list.length === 0}
+        isEmpty={(page) => page.items.length === 0}
         empty={
-          <EmptyState
-            icon={<ArrowLeftRight />}
-            title={unmatchedOnly ? 'Everything is matched' : 'No transactions yet'}
-            description={
-              unmatchedOnly
-                ? 'Every payment received is linked to an invoice.'
-                : 'Payments will appear here as they happen.'
-            }
-          />
+          list.q ? (
+            <NoResults
+              resource="transactions"
+              onClear={() => list.set({ q: null, filter: null })}
+            />
+          ) : (
+            <EmptyState
+              icon={<ArrowLeftRight />}
+              title={unmatchedOnly ? 'Everything is matched' : 'No transactions yet'}
+              description={
+                unmatchedOnly
+                  ? 'Every payment received is linked to an invoice.'
+                  : 'Payments will appear here as they happen.'
+              }
+            />
+          )
         }
       >
-        {(list) => (
-          <DataTable
-            aria-label="Transactions"
-            columns={columns}
-            data={list}
-            getRowId={(t) => t.id}
-          />
+        {(page) => (
+          <>
+            <DataTable
+              aria-label="Transactions"
+              columns={columns}
+              data={page.items}
+              getRowId={(t) => t.id}
+              sort={list.sort}
+              onSortChange={list.setSort}
+            />
+            <LoadMore
+              shown={page.items.length}
+              total={page.total}
+              hasMore={query.hasNextPage}
+              loading={query.isFetchingNextPage}
+              onLoadMore={() => void query.fetchNextPage()}
+            />
+          </>
         )}
       </QueryView>
       {matching ? <MatchDrawer transaction={matching} onClose={() => setMatching(null)} /> : null}

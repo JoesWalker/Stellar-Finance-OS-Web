@@ -1,14 +1,21 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useApiClient } from '../context';
 import { unwrap } from '../errors';
-import type { InvoiceInput, InvoiceStatus } from '../types';
+import type { InvoiceInput } from '../types';
 import { keys } from './keys';
+import { cleanParams, infiniteListOptions } from './list';
+import type { InvoiceListParams } from './params';
 
-export function useInvoices(status?: InvoiceStatus) {
+/** Server-paginated invoice list. Call `fetchNextPage()` for more. */
+export function useInvoices(params: InvoiceListParams = {}) {
   const api = useApiClient();
-  return useQuery({
-    queryKey: keys.invoices.list(status),
-    queryFn: async () => unwrap(await api.GET('/invoices', { params: { query: { status } } })).data,
+  const { status, ...rest } = cleanParams(params);
+  const query = { ...rest, status: status === undefined ? undefined : [status].flat() };
+  return useInfiniteQuery({
+    queryKey: keys.invoices.list(cleanParams(query)),
+    ...infiniteListOptions(async (cursor) =>
+      unwrap(await api.GET('/invoices', { params: { query: { ...query, cursor } } })),
+    ),
   });
 }
 

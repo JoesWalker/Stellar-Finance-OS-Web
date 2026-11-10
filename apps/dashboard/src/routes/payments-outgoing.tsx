@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { useSearchParams } from 'react-router';
 import { usePaymentRequests, type PaymentRequest } from '@finance-os/api-client';
 import {
   Amount,
@@ -7,8 +6,11 @@ import {
   createDataTableColumns,
   DataTable,
   EmptyState,
+  LoadMore,
+  NoResults,
   PageHeader,
   PaymentStatusBadge,
+  SearchInput,
 } from '@finance-os/ui';
 import { formatRelative } from '@finance-os/utils';
 import { Plus, Send } from 'lucide-react';
@@ -16,20 +18,20 @@ import { Can } from '../components/can';
 import { QueryView } from '../components/query-view';
 import { PaymentRequestFormDialog } from '../features/payments/payment-request-form-dialog';
 import { PaymentRequestSheet } from '../features/payments/payment-request-sheet';
+import { useListParams } from '../lib/use-list-params';
 
 const col = createDataTableColumns<PaymentRequest>();
 
 export function OutgoingPaymentsPage() {
-  const query = usePaymentRequests();
+  const list = useListParams();
+  const query = usePaymentRequests({ q: list.q, sort: list.sortParam });
   const [creating, setCreating] = useState(false);
-  const [params, setParams] = useSearchParams();
-  const selected = params.get('request');
-  const open = (id: string) => setParams({ request: id });
+  const selected = list.params.get('request');
+  const open = (id: string) => list.set({ request: id }, { replace: false });
 
   const columns = [
     col.accessor('vendorName', {
       header: 'Vendor',
-      sortFn: 'text',
       cell: ({ row }) => (
         <button
           type="button"
@@ -51,12 +53,10 @@ export function OutgoingPaymentsPage() {
     }),
     col.accessor('createdAt', {
       header: 'Requested',
-      sortFn: 'datetime',
       cell: ({ getValue }) => formatRelative(getValue()),
     }),
     col.accessor('amount', {
       header: 'Amount',
-      enableSorting: false,
       meta: { className: 'text-right' },
       cell: ({ row }) => <Amount value={row.original.amount} assetCode={row.original.assetCode} />,
     }),
@@ -75,29 +75,51 @@ export function OutgoingPaymentsPage() {
           </Can>
         }
       />
+      <SearchInput
+        className="mb-4"
+        aria-label="Search payment requests"
+        placeholder="Vendor, description, memo or amount"
+        value={list.q}
+        onValueChange={list.setQ}
+      />
       <QueryView
         query={query}
         resource="payment requests"
-        isEmpty={(list) => list.length === 0}
+        isEmpty={(page) => page.items.length === 0}
         empty={
-          <EmptyState
-            icon={<Send />}
-            title="No payment requests yet"
-            description="Create one to pay a vendor."
-          />
+          list.q ? (
+            <NoResults resource="payment requests" onClear={() => list.set({ q: null })} />
+          ) : (
+            <EmptyState
+              icon={<Send />}
+              title="No payment requests yet"
+              description="Create one to pay a vendor."
+            />
+          )
         }
       >
-        {(requests) => (
-          <DataTable
-            aria-label="Payment requests"
-            columns={columns}
-            data={requests}
-            getRowId={(r) => r.id}
-          />
+        {(page) => (
+          <>
+            <DataTable
+              aria-label="Payment requests"
+              columns={columns}
+              data={page.items}
+              getRowId={(r) => r.id}
+              sort={list.sort}
+              onSortChange={list.setSort}
+            />
+            <LoadMore
+              shown={page.items.length}
+              total={page.total}
+              hasMore={query.hasNextPage}
+              loading={query.isFetchingNextPage}
+              onLoadMore={() => void query.fetchNextPage()}
+            />
+          </>
         )}
       </QueryView>
       <PaymentRequestFormDialog open={creating} onOpenChange={setCreating} />
-      <PaymentRequestSheet id={selected} onClose={() => setParams({})} />
+      <PaymentRequestSheet id={selected} onClose={() => list.set({ request: null })} />
     </>
   );
 }

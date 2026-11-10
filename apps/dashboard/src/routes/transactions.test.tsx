@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import { renderApp } from '../test/render';
@@ -16,6 +16,22 @@ describe('transactions page', () => {
     await screen.findByText('310.00 USDC');
     expect(screen.queryByText('4,250.00 USDC')).not.toBeInTheDocument();
     expect(db.invoices.find((i) => i.id === 'inv_1001')!.status).toBe('paid');
+  });
+
+  it('searches open invoices in the match drawer', async () => {
+    const user = userEvent.setup();
+    renderApp('/transactions?filter=unmatched', { as: 'accountant' });
+    const row = (await screen.findByText('4,250.00 USDC')).closest('tr')!;
+    await user.click(within(row).getByRole('button', { name: 'Match' }));
+    const drawer = await screen.findByRole('dialog');
+    await within(drawer).findByRole('radio', { name: /INV-1001/ });
+    await user.type(within(drawer).getByRole('searchbox'), 'Acme');
+    expect(
+      await within(drawer).findByRole('radio', { name: /INV-1007 · Acme Retail/ }),
+    ).toBeInTheDocument();
+    await waitFor(() =>
+      expect(within(drawer).queryByRole('radio', { name: /INV-1001/ })).not.toBeInTheDocument(),
+    );
   });
 
   it('shows matched invoices and hides the match action from viewers', async () => {

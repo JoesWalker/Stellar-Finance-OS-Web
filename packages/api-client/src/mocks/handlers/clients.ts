@@ -1,4 +1,5 @@
 import { http, HttpResponse } from 'msw';
+import { paginate } from '../list';
 import type { ClientInput } from '../../types';
 import { authenticate, error, newId, requireRole, WRITE_ROLES, type MockContext } from '../context';
 
@@ -6,7 +7,12 @@ export const clientHandlers = ({ db, base }: MockContext) => [
   http.get(`${base}/clients`, ({ request }) => {
     const caller = authenticate(db, request);
     if (caller instanceof Response) return caller;
-    return HttpResponse.json({ data: db.clients });
+    const page = paginate(db.clients, new URL(request.url), {
+      search: (c) => [c.name, c.email],
+      sortable: { name: { get: (c) => c.name }, createdAt: { get: (c) => c.createdAt } },
+      defaultSort: 'name:asc',
+    });
+    return page instanceof Response ? page : HttpResponse.json(page);
   }),
 
   http.get(`${base}/clients/:id`, ({ request, params }) => {

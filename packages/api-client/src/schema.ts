@@ -11,6 +11,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
+        /** @description Matches invoice number, client name and amount. Sort fields: number, clientName, issueDate, dueDate, status, amount. Date range applies to issueDate. */
         get: operations["listInvoices"];
         put?: never;
         post: operations["createInvoice"];
@@ -107,6 +108,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
+        /** @description Matches name and email. Sort fields: name, createdAt. */
         get: operations["listClients"];
         put?: never;
         post: operations["createClient"];
@@ -196,6 +198,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
+        /** @description Matches name, email and payout address. Sort fields: name, createdAt. */
         get: operations["listVendors"];
         put?: never;
         post: operations["createVendor"];
@@ -246,6 +249,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
+        /** @description Matches vendor name, description, memo and amount. Sort fields: createdAt, amount, vendorName, status. */
         get: operations["listPaymentRequests"];
         put?: never;
         post: operations["createPaymentRequest"];
@@ -369,6 +373,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
+        /** @description Matches memo, tx hash, addresses, amount and invoice number. Sort fields: createdAt, amount, matchStatus. Date range applies to createdAt. */
         get: operations["listTransactions"];
         put?: never;
         post?: never;
@@ -888,7 +893,20 @@ export interface components {
         };
     };
     responses: never;
-    parameters: never;
+    parameters: {
+        /** @description Page size (1–100). Defaults to 25. */
+        Limit: number;
+        /** @description Opaque cursor from a previous page's nextCursor. */
+        Cursor: string;
+        /** @description Case-insensitive text search. */
+        Search: string;
+        /** @description `field:asc` or `field:desc`. Unknown fields fall back to the default order. */
+        Sort: string;
+        /** @description Inclusive start date (YYYY-MM-DD). */
+        DateFrom: string;
+        /** @description Inclusive end date (YYYY-MM-DD). */
+        DateTo: string;
+    };
     requestBodies: never;
     headers: never;
     pathItems: never;
@@ -898,7 +916,22 @@ export interface operations {
     listInvoices: {
         parameters: {
             query?: {
-                status?: components["schemas"]["InvoiceStatus"];
+                /** @description Repeat to match any of several statuses (e.g. status=sent&status=overdue). */
+                status?: components["schemas"]["InvoiceStatus"][];
+                /** @description Page size (1–100). Defaults to 25. */
+                limit?: components["parameters"]["Limit"];
+                /** @description Opaque cursor from a previous page's nextCursor. */
+                cursor?: components["parameters"]["Cursor"];
+                /** @description Case-insensitive text search. */
+                q?: components["parameters"]["Search"];
+                /** @description `field:asc` or `field:desc`. Unknown fields fall back to the default order. */
+                sort?: components["parameters"]["Sort"];
+                /** @description Inclusive start date (YYYY-MM-DD). */
+                from?: components["parameters"]["DateFrom"];
+                /** @description Inclusive end date (YYYY-MM-DD). */
+                to?: components["parameters"]["DateTo"];
+                clientId?: string;
+                assetCode?: string;
             };
             header?: never;
             path?: never;
@@ -914,6 +947,10 @@ export interface operations {
                 content: {
                     "application/json": {
                         data: components["schemas"]["Invoice"][];
+                        /** @description Pass as `cursor` to fetch the next page; null on the last page. */
+                        nextCursor: string | null;
+                        /** @description Total matching rows across all pages. */
+                        total: number;
                     };
                 };
             };
@@ -1105,7 +1142,16 @@ export interface operations {
     };
     listClients: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Page size (1–100). Defaults to 25. */
+                limit?: components["parameters"]["Limit"];
+                /** @description Opaque cursor from a previous page's nextCursor. */
+                cursor?: components["parameters"]["Cursor"];
+                /** @description Case-insensitive text search. */
+                q?: components["parameters"]["Search"];
+                /** @description `field:asc` or `field:desc`. Unknown fields fall back to the default order. */
+                sort?: components["parameters"]["Sort"];
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -1120,6 +1166,10 @@ export interface operations {
                 content: {
                     "application/json": {
                         data: components["schemas"]["Client"][];
+                        /** @description Pass as `cursor` to fetch the next page; null on the last page. */
+                        nextCursor: string | null;
+                        /** @description Total matching rows across all pages. */
+                        total: number;
                     };
                 };
             };
@@ -1363,7 +1413,16 @@ export interface operations {
     };
     listVendors: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Page size (1–100). Defaults to 25. */
+                limit?: components["parameters"]["Limit"];
+                /** @description Opaque cursor from a previous page's nextCursor. */
+                cursor?: components["parameters"]["Cursor"];
+                /** @description Case-insensitive text search. */
+                q?: components["parameters"]["Search"];
+                /** @description `field:asc` or `field:desc`. Unknown fields fall back to the default order. */
+                sort?: components["parameters"]["Sort"];
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -1378,6 +1437,10 @@ export interface operations {
                 content: {
                     "application/json": {
                         data: components["schemas"]["Vendor"][];
+                        /** @description Pass as `cursor` to fetch the next page; null on the last page. */
+                        nextCursor: string | null;
+                        /** @description Total matching rows across all pages. */
+                        total: number;
                     };
                 };
             };
@@ -1528,6 +1591,14 @@ export interface operations {
         parameters: {
             query?: {
                 status?: components["schemas"]["PaymentRequestStatus"];
+                /** @description Page size (1–100). Defaults to 25. */
+                limit?: components["parameters"]["Limit"];
+                /** @description Opaque cursor from a previous page's nextCursor. */
+                cursor?: components["parameters"]["Cursor"];
+                /** @description Case-insensitive text search. */
+                q?: components["parameters"]["Search"];
+                /** @description `field:asc` or `field:desc`. Unknown fields fall back to the default order. */
+                sort?: components["parameters"]["Sort"];
             };
             header?: never;
             path?: never;
@@ -1543,6 +1614,10 @@ export interface operations {
                 content: {
                     "application/json": {
                         data: components["schemas"]["PaymentRequest"][];
+                        /** @description Pass as `cursor` to fetch the next page; null on the last page. */
+                        nextCursor: string | null;
+                        /** @description Total matching rows across all pages. */
+                        total: number;
                     };
                 };
             };
@@ -1792,6 +1867,18 @@ export interface operations {
         parameters: {
             query?: {
                 matchStatus?: components["schemas"]["MatchStatus"];
+                /** @description Page size (1–100). Defaults to 25. */
+                limit?: components["parameters"]["Limit"];
+                /** @description Opaque cursor from a previous page's nextCursor. */
+                cursor?: components["parameters"]["Cursor"];
+                /** @description Case-insensitive text search. */
+                q?: components["parameters"]["Search"];
+                /** @description `field:asc` or `field:desc`. Unknown fields fall back to the default order. */
+                sort?: components["parameters"]["Sort"];
+                /** @description Inclusive start date (YYYY-MM-DD). */
+                from?: components["parameters"]["DateFrom"];
+                /** @description Inclusive end date (YYYY-MM-DD). */
+                to?: components["parameters"]["DateTo"];
             };
             header?: never;
             path?: never;
@@ -1807,6 +1894,10 @@ export interface operations {
                 content: {
                     "application/json": {
                         data: components["schemas"]["Transaction"][];
+                        /** @description Pass as `cursor` to fetch the next page; null on the last page. */
+                        nextCursor: string | null;
+                        /** @description Total matching rows across all pages. */
+                        total: number;
                     };
                 };
             };

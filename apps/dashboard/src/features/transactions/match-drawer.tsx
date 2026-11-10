@@ -1,10 +1,17 @@
 import { useState } from 'react';
-import { useInvoices, useMatchTransaction, type Transaction } from '@finance-os/api-client';
+import {
+  useInvoices,
+  useMatchTransaction,
+  type InvoiceStatus,
+  type Transaction,
+} from '@finance-os/api-client';
 import {
   Address,
   Amount,
   Button,
   DescriptionList,
+  LoadMore,
+  SearchInput,
   Sheet,
   SheetContent,
   SheetDescription,
@@ -18,7 +25,7 @@ import { FormError } from '../../components/forms/form-error';
 import { QueryView } from '../../components/query-view';
 import { env } from '../../env';
 
-const MATCHABLE = new Set(['sent', 'partially_paid', 'overdue']);
+const MATCHABLE: InvoiceStatus[] = ['sent', 'partially_paid', 'overdue'];
 
 /** Link an unmatched incoming payment to an open invoice. The API applies the match. */
 export function MatchDrawer({
@@ -28,7 +35,14 @@ export function MatchDrawer({
   transaction: Transaction;
   onClose: () => void;
 }) {
-  const invoices = useInvoices();
+  const [search, setSearch] = useState('');
+  // The API filters to open invoices in this asset and searches number, client name and amount.
+  const invoices = useInvoices({
+    status: MATCHABLE,
+    assetCode: transaction.assetCode,
+    q: search,
+    limit: 20,
+  });
   const match = useMatchTransaction();
   const [invoiceId, setInvoiceId] = useState('');
 
@@ -60,14 +74,20 @@ export function MatchDrawer({
             { label: 'Received', value: formatDate(transaction.createdAt) },
           ]}
         />
+        <SearchInput
+          className="sm:max-w-none"
+          aria-label="Search open invoices"
+          placeholder="Invoice number, client or amount"
+          value={search}
+          onValueChange={setSearch}
+        />
         <QueryView query={invoices} resource="open invoices">
-          {(list) => {
-            const open = list.filter(
-              (i) => MATCHABLE.has(i.status) && i.assetCode === transaction.assetCode,
-            );
+          {({ items: open, total }) => {
             return open.length === 0 ? (
               <p className="text-sm text-muted-foreground">
-                There are no open {transaction.assetCode} invoices to match.
+                {search
+                  ? `No open ${transaction.assetCode} invoices match “${search}”.`
+                  : `There are no open ${transaction.assetCode} invoices to match.`}
               </p>
             ) : (
               <fieldset className="grid gap-2">
@@ -99,6 +119,14 @@ export function MatchDrawer({
                     </span>
                   </label>
                 ))}
+                <LoadMore
+                  className="mt-1"
+                  shown={open.length}
+                  total={total}
+                  hasMore={invoices.hasNextPage}
+                  loading={invoices.isFetchingNextPage}
+                  onLoadMore={() => void invoices.fetchNextPage()}
+                />
               </fieldset>
             );
           }}

@@ -11,9 +11,10 @@ import { transactionHandlers } from './handlers/transactions';
 import { treasuryHandlers } from './handlers/treasury';
 import { vendorHandlers } from './handlers/vendors';
 
-export { createDb, type MockDb } from './db';
+export { createDb, type CreateDbOptions, type MockDb } from './db';
 export { ADDRESSES, MUXED, TESTNET_USDC_ISSUER } from './constants';
 export { TOKEN_PREFIX } from './context';
+export { DEFAULT_LIMIT, MAX_LIMIT } from './list';
 export { SETTLE_DELAY_MS } from './handlers/payment-requests';
 
 export interface CreateHandlersOptions {

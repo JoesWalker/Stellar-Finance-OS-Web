@@ -6,7 +6,10 @@ import {
   createDataTableColumns,
   DataTable,
   EmptyState,
+  LoadMore,
+  NoResults,
   PageHeader,
+  SearchInput,
 } from '@finance-os/ui';
 import { Plus, Store } from 'lucide-react';
 import { usePermission } from '../auth/use-permission';
@@ -14,18 +17,19 @@ import { Can } from '../components/can';
 import { QueryView } from '../components/query-view';
 import { env } from '../env';
 import { VendorFormDialog } from '../features/vendors/vendor-form-dialog';
+import { useListParams } from '../lib/use-list-params';
 
 const col = createDataTableColumns<Vendor>();
 
 export function VendorsPage() {
-  const query = useVendors();
+  const list = useListParams();
+  const query = useVendors({ q: list.q, sort: list.sortParam });
   const canWrite = usePermission('vendors:write');
   const [dialog, setDialog] = useState<{ open: boolean; vendor?: Vendor }>({ open: false });
 
   const columns = [
     col.accessor('name', {
       header: 'Name',
-      sortFn: 'text',
       cell: ({ getValue }) => <span className="font-medium">{getValue()}</span>,
     }),
     col.accessor('payoutAddress', {
@@ -73,20 +77,47 @@ export function VendorsPage() {
           </Can>
         }
       />
+      <SearchInput
+        className="mb-4"
+        aria-label="Search vendors"
+        placeholder="Name, email or address"
+        value={list.q}
+        onValueChange={list.setQ}
+      />
       <QueryView
         query={query}
         resource="vendors"
-        isEmpty={(v) => v.length === 0}
+        isEmpty={(page) => page.items.length === 0}
         empty={
-          <EmptyState
-            icon={<Store />}
-            title="No vendors yet"
-            description="Add a vendor to start paying them in USDC."
-          />
+          list.q ? (
+            <NoResults resource="vendors" onClear={() => list.set({ q: null })} />
+          ) : (
+            <EmptyState
+              icon={<Store />}
+              title="No vendors yet"
+              description="Add a vendor to start paying them in USDC."
+            />
+          )
         }
       >
-        {(vendors) => (
-          <DataTable aria-label="Vendors" columns={columns} data={vendors} getRowId={(v) => v.id} />
+        {(page) => (
+          <>
+            <DataTable
+              aria-label="Vendors"
+              columns={columns}
+              data={page.items}
+              getRowId={(v) => v.id}
+              sort={list.sort}
+              onSortChange={list.setSort}
+            />
+            <LoadMore
+              shown={page.items.length}
+              total={page.total}
+              hasMore={query.hasNextPage}
+              loading={query.isFetchingNextPage}
+              onLoadMore={() => void query.fetchNextPage()}
+            />
+          </>
         )}
       </QueryView>
       <VendorFormDialog

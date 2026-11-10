@@ -6,9 +6,9 @@ describe('dashboard home', () => {
   it('shows the numbers the API returns', async () => {
     renderApp('/', { as: 'approver' });
     const open = (await screen.findByText('Open invoices')).closest('a')!;
-    // INV-1001 (4,250) + INV-1002 (8,000 − 2,500) + INV-1006 (3,000 − 1,000)
-    expect(within(open).getByText('3')).toBeInTheDocument();
-    expect(within(open).getByText('11,750.00 USDC')).toBeInTheDocument();
+    // INV-1001 (4,250) + INV-1002 (8,000 − 2,500) + INV-1006 (3,000 − 1,000) + INV-1007 (1,200)
+    expect(within(open).getByText('4')).toBeInTheDocument();
+    expect(within(open).getByText('12,950.00 USDC')).toBeInTheDocument();
     const approvals = screen.getByText('Waiting for your approval').closest('a')!;
     expect(approvals).toHaveAttribute('href', '/approvals');
     expect(

@@ -60,7 +60,18 @@ export function paymentReference(muxId: number) {
   };
 }
 
-export function createDb(now = new Date()): MockDb {
+export interface CreateDbOptions {
+  /**
+   * Older paid/void invoices added after the seeded ones so lists span several pages.
+   * They are closed, so dashboard totals and reconciliation fixtures are unaffected.
+   */
+  historicInvoices?: number;
+}
+
+export function createDb(
+  now = new Date(),
+  { historicInvoices = 60 }: CreateDbOptions = {},
+): MockDb {
   const iso = (offsetDays: number) => new Date(now.getTime() + offsetDays * DAY).toISOString();
   const role = (r: Role) => r;
 
@@ -110,6 +121,13 @@ export function createDb(now = new Date()): MockDb {
       senderAddresses: [],
       createdAt: iso(-20),
     },
+    {
+      id: 'c_acme_retail',
+      name: 'Acme Retail',
+      email: 'ap@acme-retail.test',
+      senderAddresses: [],
+      createdAt: iso(-400),
+    },
   ];
 
   const invoice = (
@@ -141,7 +159,7 @@ export function createDb(now = new Date()): MockDb {
     };
   };
 
-  const [northwind, globex, initech] = clients as [Client, Client, Client];
+  const [northwind, globex, initech, acmeRetail] = clients as [Client, Client, Client, Client];
   const invoices: InvoiceDetail[] = [
     invoice(1001, northwind, 'sent', -5, 25, [
       ['Brand identity design', '1', '3500.00'],
@@ -176,7 +194,26 @@ export function createDb(now = new Date()): MockDb {
       [['Consulting (hours)', '20', '150.00']],
       '1000.00',
     ),
+    invoice(1007, acmeRetail, 'sent', -2, 28, [['Store fit-out drawings', '1', '1200.00']]),
   ];
+
+  // Deterministic history: one closed invoice every ~3 days going back from day -45.
+  const historyClients = [northwind, globex, initech, acmeRetail];
+  for (let k = 0; k < historicInvoices; k++) {
+    const issued = -45 - Math.floor(k * 2.7);
+    const isVoid = k % 11 === 10;
+    const price = `${((k * 137) % 4000) + 250}.00`;
+    const inv = invoice(
+      2000 + k,
+      historyClients[k % historyClients.length]!,
+      isVoid ? 'void' : 'paid',
+      issued,
+      issued + 30,
+      [[`Services — batch ${k + 1}`, '1', price]],
+      isVoid ? '0.00' : price,
+    );
+    invoices.push(inv);
+  }
 
   const transactions: Transaction[] = [
     {
@@ -447,6 +484,6 @@ export function createDb(now = new Date()): MockDb {
     paymentRequests,
     transactions,
     approvalPolicies,
-    nextInvoiceNumber: 1007,
+    nextInvoiceNumber: 1008,
   };
 }

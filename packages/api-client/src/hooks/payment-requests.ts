@@ -1,17 +1,22 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useApiClient } from '../context';
 import { unwrap } from '../errors';
 import type { PaymentRequestInput, PaymentRequestStatus } from '../types';
 import { keys } from './keys';
+import { cleanParams, infiniteListOptions } from './list';
+import type { PaymentRequestListParams } from './params';
 
 const IN_FLIGHT: PaymentRequestStatus[] = ['submitted'];
 
-export function usePaymentRequests(status?: PaymentRequestStatus) {
+/** Server-paginated payment requests. Call `fetchNextPage()` for more. */
+export function usePaymentRequests(params: PaymentRequestListParams = {}) {
   const api = useApiClient();
-  return useQuery({
-    queryKey: keys.paymentRequests.list(status),
-    queryFn: async () =>
-      unwrap(await api.GET('/payment-requests', { params: { query: { status } } })).data,
+  const query = cleanParams(params);
+  return useInfiniteQuery({
+    queryKey: keys.paymentRequests.list(query),
+    ...infiniteListOptions(async (cursor) =>
+      unwrap(await api.GET('/payment-requests', { params: { query: { ...query, cursor } } })),
+    ),
   });
 }
 

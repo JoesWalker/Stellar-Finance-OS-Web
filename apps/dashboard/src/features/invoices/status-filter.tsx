@@ -19,7 +19,7 @@ export function StatusFilter({
   onChange: (status: InvoiceStatus | undefined) => void;
 }) {
   return (
-    <div role="group" aria-label="Filter by status" className="mb-4 flex flex-wrap gap-1.5">
+    <div role="group" aria-label="Filter by status" className="flex flex-wrap gap-1.5">
       {FILTERS.map((f) => (
         <button
           key={f.label}

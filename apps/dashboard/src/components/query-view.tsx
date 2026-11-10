@@ -1,11 +1,11 @@
 import type { ReactNode } from 'react';
-import type { UseQueryResult } from '@tanstack/react-query';
+import type { UseInfiniteQueryResult, UseQueryResult } from '@tanstack/react-query';
 import { ApiError, isForbidden } from '@finance-os/api-client';
 import { Button, EmptyState, Spinner } from '@finance-os/ui';
 import { AlertTriangle, Lock, SearchX } from 'lucide-react';
 
 export interface QueryViewProps<T> {
-  query: UseQueryResult<T>;
+  query: UseQueryResult<T> | UseInfiniteQueryResult<T>;
   /** Return true when there's nothing to show. */
   isEmpty?: (data: T) => boolean;
   empty?: ReactNode;

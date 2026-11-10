@@ -1,5 +1,6 @@
 import Big from 'big.js';
 import { http, HttpResponse } from 'msw';
+import { paginate } from '../list';
 import type { InvoiceDetail, InvoiceInput, InvoiceStatus } from '../../types';
 import { authenticate, error, newId, requireRole, WRITE_ROLES, type MockContext } from '../context';
 import { paymentReference, sum, type MockDb } from '../db';
@@ -28,12 +29,31 @@ export const invoiceHandlers = ({ db, base }: MockContext) => [
   http.get(`${base}/invoices`, ({ request }) => {
     const caller = authenticate(db, request);
     if (caller instanceof Response) return caller;
-    const status = new URL(request.url).searchParams.get('status') as InvoiceStatus | null;
-    const data = db.invoices
-      .filter((i) => !status || i.status === status)
-      .sort((a, b) => b.issueDate.localeCompare(a.issueDate))
-      .map(summary);
-    return HttpResponse.json({ data });
+    const url = new URL(request.url);
+    const statuses = url.searchParams.getAll('status') as InvoiceStatus[];
+    const clientId = url.searchParams.get('clientId');
+    const assetCode = url.searchParams.get('assetCode');
+    const rows = db.invoices.filter(
+      (i) =>
+        (statuses.length === 0 || statuses.includes(i.status)) &&
+        (!clientId || i.clientId === clientId) &&
+        (!assetCode || i.assetCode === assetCode),
+    );
+    const page = paginate(rows, url, {
+      search: (i) => [i.number, i.clientName, i.amount],
+      sortable: {
+        issueDate: { get: (i) => i.issueDate },
+        dueDate: { get: (i) => i.dueDate },
+        number: { get: (i) => i.number },
+        clientName: { get: (i) => i.clientName },
+        status: { get: (i) => i.status },
+        amount: { get: (i) => i.amount, decimal: true },
+      },
+      defaultSort: 'issueDate:desc',
+      dateField: (i) => i.issueDate,
+    });
+    if (page instanceof Response) return page;
+    return HttpResponse.json({ ...page, data: page.data.map(summary) });
   }),
 
   http.get(`${base}/invoices/:id`, ({ request, params }) => {

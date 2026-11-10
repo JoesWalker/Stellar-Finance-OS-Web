@@ -1,14 +1,20 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useApiClient } from '../context';
 import { unwrap } from '../errors';
 import type { ClientInput } from '../types';
 import { keys } from './keys';
+import { cleanParams, infiniteListOptions } from './list';
+import type { ClientListParams } from './params';
 
-export function useClients() {
+/** Server-paginated client list. Call `fetchNextPage()` for more. */
+export function useClients(params: ClientListParams = {}) {
   const api = useApiClient();
-  return useQuery({
-    queryKey: keys.clients.all,
-    queryFn: async () => unwrap(await api.GET('/clients')).data,
+  const query = cleanParams(params);
+  return useInfiniteQuery({
+    queryKey: keys.clients.list(query),
+    ...infiniteListOptions(async (cursor) =>
+      unwrap(await api.GET('/clients', { params: { query: { ...query, cursor } } })),
+    ),
   });
 }
 

@@ -20,13 +20,13 @@ describe('invoice editor', () => {
     expect(screen.getByText('100.30 USDC')).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: 'Save draft' }));
-    expect(await screen.findByRole('heading', { name: /Invoice INV-1007/ })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: /Invoice INV-1008/ })).toBeInTheDocument();
     expect(router.state.location.pathname).toMatch(/^\/invoices\/inv_/);
     expect(screen.getByText('Send the invoice to share its pay link.')).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: /send invoice/i }));
     expect(await screen.findByRole('button', { name: 'Copy pay link' })).toBeInTheDocument();
-    expect(screen.getByText(/\/i\/pub_1007$/)).toBeInTheDocument();
+    expect(screen.getByText(/\/i\/pub_1008$/)).toBeInTheDocument();
   });
 
   it('validates required fields', async () => {

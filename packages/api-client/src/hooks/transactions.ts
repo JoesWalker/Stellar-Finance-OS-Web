@@ -1,15 +1,19 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useApiClient } from '../context';
 import { unwrap } from '../errors';
-import type { MatchStatus } from '../types';
 import { keys } from './keys';
+import { cleanParams, infiniteListOptions } from './list';
+import type { TransactionListParams } from './params';
 
-export function useTransactions(matchStatus?: MatchStatus) {
+/** Server-paginated transaction list. Call `fetchNextPage()` for more. */
+export function useTransactions(params: TransactionListParams = {}) {
   const api = useApiClient();
-  return useQuery({
-    queryKey: keys.transactions.list(matchStatus),
-    queryFn: async () =>
-      unwrap(await api.GET('/transactions', { params: { query: { matchStatus } } })).data,
+  const query = cleanParams(params);
+  return useInfiniteQuery({
+    queryKey: keys.transactions.list(query),
+    ...infiniteListOptions(async (cursor) =>
+      unwrap(await api.GET('/transactions', { params: { query: { ...query, cursor } } })),
+    ),
   });
 }
 

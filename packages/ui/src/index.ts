@@ -63,7 +63,13 @@ export {
   type DataTableColumn,
   type DataTableFeatures,
   type DataTableProps,
+  type DataTableSort,
+  sortFromParam,
+  sortToParam,
 } from './components/data-table';
+export { SearchInput, type SearchInputProps } from './components/search-input';
+export { LoadMore, type LoadMoreProps } from './components/load-more';
+export { NoResults, type NoResultsProps } from './components/no-results';
 export { PaymentStatusBadge, type PaymentRequestStatus } from './components/payment-status-badge';
 export { ChartTable } from './components/chart-table';
 export { ChartTooltipCard, type ChartTooltipRow } from './components/chart-tooltip';

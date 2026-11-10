@@ -1,16 +1,26 @@
 import Big from 'big.js';
 import { http, HttpResponse } from 'msw';
+import { paginate } from '../list';
 import { authenticate, error, requireRole, WRITE_ROLES, type MockContext } from '../context';
 
 export const transactionHandlers = ({ db, base }: MockContext) => [
   http.get(`${base}/transactions`, ({ request }) => {
     const caller = authenticate(db, request);
     if (caller instanceof Response) return caller;
-    const matchStatus = new URL(request.url).searchParams.get('matchStatus');
-    const data = db.transactions
-      .filter((t) => !matchStatus || t.matchStatus === matchStatus)
-      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-    return HttpResponse.json({ data });
+    const url = new URL(request.url);
+    const matchStatus = url.searchParams.get('matchStatus');
+    const rows = db.transactions.filter((t) => !matchStatus || t.matchStatus === matchStatus);
+    const page = paginate(rows, url, {
+      search: (t) => [t.memo, t.txHash, t.from, t.to, t.amount, t.invoiceNumber],
+      sortable: {
+        createdAt: { get: (t) => t.createdAt },
+        amount: { get: (t) => t.amount, decimal: true },
+        matchStatus: { get: (t) => t.matchStatus },
+      },
+      defaultSort: 'createdAt:desc',
+      dateField: (t) => t.createdAt,
+    });
+    return page instanceof Response ? page : HttpResponse.json(page);
   }),
 
   http.post(`${base}/transactions/:id/match`, async ({ request, params }) => {

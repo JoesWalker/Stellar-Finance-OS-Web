@@ -1,6 +1,6 @@
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { createDataTableColumns, DataTable } from './data-table';
 
 type Row = { name: string; total: number };
@@ -29,5 +29,22 @@ describe('DataTable', () => {
     await user.click(screen.getByRole('button', { name: 'Name' }));
     expect(names()).toEqual(['alpha', 'Bravo', 'Charlie']);
     expect(screen.queryByRole('button', { name: 'Total' })).not.toBeInTheDocument();
+  });
+
+  it('leaves sorting to the server when onSortChange is given', async () => {
+    const user = userEvent.setup();
+    const onSortChange = vi.fn();
+    render(
+      <DataTable
+        columns={columns}
+        data={data}
+        sort={null}
+        onSortChange={onSortChange}
+        aria-label="People"
+      />,
+    );
+    await user.click(screen.getByRole('button', { name: 'Name' }));
+    expect(onSortChange).toHaveBeenCalledWith({ id: 'name', desc: false });
+    expect(names()).toEqual(['Charlie', 'alpha', 'Bravo']);
   });
 });

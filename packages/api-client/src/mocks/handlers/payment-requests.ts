@@ -1,6 +1,7 @@
 import Big from 'big.js';
 import { Account, Asset, Memo, Operation, TransactionBuilder } from '@stellar/stellar-sdk';
 import { http, HttpResponse } from 'msw';
+import { paginate } from '../list';
 import type { PaymentRequest, PaymentRequestInput } from '../../types';
 import { TESTNET_USDC_ISSUER } from '../constants';
 import {
@@ -76,12 +77,21 @@ export const paymentRequestHandlers = ({ db, base }: MockContext) => {
     http.get(`${base}/payment-requests`, ({ request }) => {
       const caller = authenticate(db, request);
       if (caller instanceof Response) return caller;
-      const status = new URL(request.url).searchParams.get('status');
-      const data = db.paymentRequests
-        .filter((p) => !status || p.status === status)
-        .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
-        .map((p) => viewFor(db, p, caller));
-      return HttpResponse.json({ data });
+      const url = new URL(request.url);
+      const status = url.searchParams.get('status');
+      const rows = db.paymentRequests.filter((p) => !status || p.status === status);
+      const page = paginate(rows, url, {
+        search: (p) => [p.vendorName, p.description, p.memo, p.amount],
+        sortable: {
+          createdAt: { get: (p) => p.createdAt },
+          amount: { get: (p) => p.amount, decimal: true },
+          vendorName: { get: (p) => p.vendorName },
+          status: { get: (p) => p.status },
+        },
+        defaultSort: 'createdAt:desc',
+      });
+      if (page instanceof Response) return page;
+      return HttpResponse.json({ ...page, data: page.data.map((p) => viewFor(db, p, caller)) });
     }),
 
     http.get(`${base}/payment-requests/:id`, ({ request, params }) => {

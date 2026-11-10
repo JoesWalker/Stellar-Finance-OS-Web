@@ -1,14 +1,20 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useApiClient } from '../context';
 import { unwrap } from '../errors';
 import type { VendorInput } from '../types';
 import { keys } from './keys';
+import { cleanParams, infiniteListOptions } from './list';
+import type { VendorListParams } from './params';
 
-export function useVendors() {
+/** Server-paginated vendor list. Call `fetchNextPage()` for more. */
+export function useVendors(params: VendorListParams = {}) {
   const api = useApiClient();
-  return useQuery({
-    queryKey: keys.vendors.all,
-    queryFn: async () => unwrap(await api.GET('/vendors')).data,
+  const query = cleanParams(params);
+  return useInfiniteQuery({
+    queryKey: keys.vendors.list(query),
+    ...infiniteListOptions(async (cursor) =>
+      unwrap(await api.GET('/vendors', { params: { query: { ...query, cursor } } })),
+    ),
   });
 }
 
